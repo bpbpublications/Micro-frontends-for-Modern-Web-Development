@@ -1,0 +1,20 @@
+// Button.tsx
+type ButtonProps = {
+  label: string;
+  onClick: () => void;
+};
+export const Button = ({ label, onClick }: ButtonProps) => (
+  <button onClick={onClick} className="p-2 rounded bg-blue-600 text-white">
+    {label}
+  </button>
+);
+
+// user-profile-module/index.ts
+export { UserCard } from "./components/UserCard";
+
+// App.tsx
+import { UserCard } from "user-profile-module";
+
+const App = () => {
+  return <UserCard />;
+};

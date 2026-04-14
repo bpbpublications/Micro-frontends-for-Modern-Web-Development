@@ -1,0 +1,151 @@
+// Get all resource timing entries and filter for scripts
+const resources = performance.getEntriesByType("resource");
+const scripts = resources.filter(entry => entry.initiatorType === "script");
+scripts.forEach(entry => {
+  console.log("Script name:", entry.name);
+  console.log("Transfer size (bytes):", entry.transferSize);
+  console.log("Fetch time (ms):", entry.responseEnd - entry.startTime);
+});
+
+
+function collectMfeResourceTimings() {
+  const resources = performance.getEntriesByType("resource");
+  const mfeResources = resources.filter(entry =>
+    entry.initiatorType === "script" &&
+    entry.name.includes("mfe-")
+  );
+  return mfeResources.map(entry => ({
+    name: entry.name,
+    transferSize: entry.transferSize,
+    fetchTime: entry.responseEnd - entry.startTime,
+    startTime: entry.startTime,
+  }));
+}
+window.addEventListener("load", () => {
+  const mfeData = collectMfeResourceTimings();
+  // Example: send to your monitoring endpoint
+  navigator.sendBeacon("/rum", JSON.stringify({
+    type: "mfe-resources",
+    resources: mfeData,
+  }));
+});
+
+
+if ("PerformanceObserver" in window) {
+  const observer = new PerformanceObserver(list => {
+    const entries = list.getEntries();
+    entries
+      .filter(entry => entry.initiatorType === "script")
+      .forEach(entry => {
+        console.log("Script loaded:", entry.name);
+        console.log("Fetch time (ms):", entry.responseEnd - entry.startTime);
+      });
+  });
+  observer.observe({ type: "resource", buffered: true });
+}
+
+
+window.addEventListener("load", () => {
+  const [navEntry] = performance.getEntriesByType("navigation");
+  if (!navEntry) return;
+  const payload = {
+    type: "navigation",
+    timeToFirstByte: navEntry.responseStart,
+    domContentLoaded: navEntry.domContentLoadedEventEnd,
+    domComplete: navEntry.domComplete,
+    loadEventEnd: navEntry.loadEventEnd,
+  };
+  navigator.sendBeacon("/rum", JSON.stringify(payload));
+});
+
+
+
+
+
+// In the container
+window.addEventListener("load", () => {
+  const [navEntry] = performance.getEntriesByType("navigation");
+  if (!navEntry) return;
+  const containerReady = navEntry.domContentLoadedEventEnd;
+  window.addEventListener("mfe-ready", event => {
+    const { name, readyTime } = event.detail;
+    console.log(`Microfrontend ${name} ready at (ms):`, readyTime);
+    console.log(
+      `Time from container ready to ${name} ready (ms):`,
+      readyTime - containerReady
+    );
+  });
+});
+// In each microfrontend
+function markMfeReady(name) {
+  const now = performance.now();
+  const event = new CustomEvent("mfe-ready", {
+    detail: { name, readyTime: now },
+  });
+  window.dispatchEvent(event);
+}
+
+
+
+
+// Inside a microfrontend
+performance.mark("mfe-profile-start");
+// ... perform setup, fetch data, render components ...
+performance.mark("mfe-profile-ready");
+// Create a measure for the time between start and ready
+performance.measure(
+  "mfe-profile-boot-time",
+  "mfe-profile-start",
+  "mfe-profile-ready"
+);
+// Read the measure
+const [entry] = performance.getEntriesByName("mfe-profile-boot-time");
+console.log("Profile MFE boot time (ms):", entry.duration);
+
+
+function reportMfeTiming(name, duration) {
+  const payload = {
+    type: "mfe-timing",
+    mfe: name,
+    duration
+  };
+  navigator.sendBeacon("/rum", JSON.stringify(payload));
+}
+
+
+
+res.setHeader(
+  "Content-Security-Policy",
+  [
+    "default-src 'self'",
+    "script-src 'self' https://cdn.example.com",
+    "style-src 'self' https://cdn.example.com",
+    "img-src 'self' data:",
+    "connect-src 'self' https://api.example.com",
+    "frame-ancestors 'none'",
+  ].join("; ")
+);
+
+
+
+res.setHeader(
+  "Strict-Transport-Security",
+  "max-age=63072000; includeSubDomains; preload"
+);
+
+
+res.setHeader("Cross-Origin-Resource-Policy", "same-site");
+res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+
+
+
+res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+
+
+res.setHeader(
+  "Permissions-Policy",
+  "geolocation=(), microphone=(), camera=()"
+);
+
+
+res.setHeader("Access-Control-Allow-Origin", "https://app.example.com");
